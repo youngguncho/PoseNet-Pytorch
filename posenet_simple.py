@@ -289,10 +289,8 @@ if __name__ == '__main__':
                 ori_true = poses[:, 3:]
 
                 beta = 500
-                print('ori_true', ori_out)
                 ori_out = F.normalize(ori_out, p=2, dim=1)
                 ori_true = F.normalize(ori_true, p=2, dim=1)
-                print('ori_true normal', ori_out)
 
                 loss_pos = F.mse_loss(pos_out, pos_true)
                 loss_ori = F.mse_loss(ori_out, ori_true)

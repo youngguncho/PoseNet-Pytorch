@@ -1,14 +1,20 @@
 import os
+import time
+import copy
 import torch
 import torchvision
 import pandas as pd
 import numpy as np
 import torch.nn as nn
+import torch.optim as optim
+from torch.optim import lr_scheduler
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models, datasets
 import torch.nn.functional as F
-from torchvision.models import inception
+import matplotlib.pyplot as plt
 from PIL import Image
+
+
 
 
 class CustomDataset(Dataset):
@@ -37,12 +43,12 @@ class CustomDataset(Dataset):
             filename = os.path.join(self.image_path, filename)
 
             if self.mode == 'train':
-                if i < 100:
-                    self.test_filenames.append(filename)
-                    self.test_poses.append(values)
-                else:
-                    self.train_filenames.append(filename)
-                    self.train_poses.append(values)
+                # if i < 100:
+                #     self.test_filenames.append(filename)
+                #     self.test_poses.append(values)
+                # else:
+                self.train_filenames.append(filename)
+                self.train_poses.append(values)
             elif self.mode == 'test':
                 self.test_filenames.append(filename)
                 self.test_poses.append(values)
@@ -62,7 +68,7 @@ class CustomDataset(Dataset):
             image = Image.open(self.test_filenames[index])
             pose = self.test_poses[index]
 
-        return self.transform(image), pose
+        return self.transform(image), torch.Tensor(pose)
 
     def __len__(self):
         if self.mode == 'train':
@@ -71,6 +77,18 @@ class CustomDataset(Dataset):
             num_data = self.num_test
         return num_data
 
+
+class BasicConv2d(nn.Module):
+
+    def __init__(self, in_channels, out_channels, **kwargs):
+        super(BasicConv2d, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
+        self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        return F.relu(x, inplace=True)
 
 class InceptionAux(nn.Module):
 
@@ -119,17 +137,9 @@ class PoseNet(nn.Module):
         self.Mixed_7b = InceptionV3.Mixed_7b
         self.Mixed_7c = InceptionV3.Mixed_7c
 
-        # Out 1
-        self.conv0 = nn.BasicConv2d(768, 128, kernel_size=1)
-        self.conv1 = nn.BasicConv2d(128, 768, kernel_size=5)
-        self.fc = nn.Linear(768, 1024)
-        self.pos1 = nn.Linear(2048, 3, bias=False)
-        self.ori1 = nn.Linear(2048, 4, bias=False)
-
         # Out 2
         self.pos2 = nn.Linear(2048, 3, bias=False)
         self.ori2 = nn.Linear(2048, 4, bias=False)
-
 
     def forward(self, x):
         # 299 x 299 x 3
@@ -163,11 +173,6 @@ class PoseNet(nn.Module):
         # 17 x 17 x 768
         x = self.Mixed_6e(x)
         # 17 x 17 x 768
-
-        aux = self.AuxLogits(x)
-
-
-        # 17 x 17 x 768
         x = self.Mixed_7a(x)
         # 8 x 8 x 1280
         x = self.Mixed_7b(x)
@@ -180,7 +185,10 @@ class PoseNet(nn.Module):
         # 1 x 1 x 2048
         x = x.view(x.size(0), -1)
         # 2048
-        x = self.fc(x)
+        pos = self.pos2(x)
+        ori = self.ori2(x)
+
+        return pos, ori
 
 
 class PoseNetSimple(nn.Module):
@@ -203,6 +211,19 @@ class PoseNetSimple(nn.Module):
         return pos, ori
 
 
+def imshow(inp, title=None):
+    """Imshow for Tensor."""
+    inp = inp.numpy().transpose((1, 2, 0))
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    inp = std * inp + mean
+    inp = np.clip(inp, 0, 1)
+    plt.imshow(inp)
+    if title is not None:
+        plt.title(title)
+    plt.pause(1)  # pause a bit so that plots are updated
+
+
 if __name__ == '__main__':
     image_path = '/mnt/data2/image_based_localization/posenet/KingsCollege'
     metadata_path = '/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_train.txt'
@@ -218,20 +239,101 @@ if __name__ == '__main__':
 
     dataset = CustomDataset(image_path, metadata_path, 'train', transform)
 
-    print(dataset.__len__())
+    print(device)
 
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
-    model = models.inception_v3(pretrained=True)
-    model.aux_logits = False
-    posenet = PoseNetSimple(model)
+    base_model = models.inception_v3(pretrained=True)
+    base_model.aux_logits = False
+    model = PoseNet(base_model)
 
-    model2 = models.alexnet(pretrained=True)
+    model = model.to(device)
 
-    dummy = torch.randn(2, 3, 299, 299)
+    inputs, poses = next(iter(data_loader))
+    out = torchvision.utils.make_grid(inputs)
+    imshow(out, 'sample image')
 
-    model_mine = nn.Sequential(*list(model.children())[:-1])
-    print(posenet(dummy))
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=50)
+
+    num_epochs = 25
+    since = time.time()
+
+    for epoch in range(num_epochs):
+        print('Epoch {}/{}'.format(epoch, num_epochs-1))
+        print('-'*20)
+
+        for phase in ['train', 'val']:
+
+            if phase == 'train':
+                scheduler.step()
+                model.train()
+            else:
+                model.eval()
+                break
+
+            for i, (inputs, poses) in enumerate(data_loader):
+                print(i)
+
+                inputs = inputs.to(device)
+                poses = poses.to(device)
+
+                # Zero the parameter gradient
+                optimizer.zero_grad()
+
+                # forward
+                pos_out, ori_out = model(inputs)
+
+                pos_true = poses[:, :3]
+                ori_true = poses[:, 3:]
+
+                beta = 500
+                print('ori_true', ori_out)
+                ori_out = F.normalize(ori_out, p=2, dim=1)
+                ori_true = F.normalize(ori_true, p=2, dim=1)
+                print('ori_true normal', ori_out)
+
+                loss_pos = F.mse_loss(pos_out, pos_true)
+                loss_ori = F.mse_loss(ori_out, ori_true)
+
+                loss = loss_pos + beta * loss_ori
+
+                loss_print = loss.item()
+                loss_ori_print = loss_ori.item()
+                loss_pos_print = loss_pos.item()
+
+                if phase == 'train':
+                    loss.backward()
+                    optimizer.step()
+
+                print('{} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(phase, loss_print, loss_pos_print, loss_ori_print))
+
+            save_filename = 'models/%s_net.pth' % (epoch)
+            # save_path = os.path.join('models', save_filename)
+            torch.save(model.cpu().state_dict(), save_filename)
+            if torch.cuda.is_available():
+                model.to(device)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    #
+    #
+    #
+    # model_mine = nn.Sequential(*list(model.children())[:-1])
+    # print(posenet(dummy))
 
 
 

@@ -15,8 +15,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 
-
-
 class CustomDataset(Dataset):
     def __init__(self, image_path, metadata_path, mode, transform):
         self.image_path = image_path
@@ -227,7 +225,7 @@ def imshow(inp, title=None):
 
 if __name__ == '__main__':
     image_path = '/mnt/data2/image_based_localization/posenet/KingsCollege'
-    metadata_path = '/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_train.txt'
+    metadata_path = '/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_test.txt'
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -238,11 +236,11 @@ if __name__ == '__main__':
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    dataset = CustomDataset(image_path, metadata_path, 'train', transform)
+    dataset = CustomDataset(image_path, metadata_path, 'test', transform)
 
     print(device)
 
-    data_loader = DataLoader(dataset, batch_size=4, shuffle=True)
+    data_loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
     base_model = models.inception_v3(pretrained=True)
     base_model.aux_logits = False
@@ -261,58 +259,44 @@ if __name__ == '__main__':
     num_epochs = 80
     since = time.time()
 
-    for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch, num_epochs-1))
-        print('-'*20)
+    print('Load pretrained model!')
+    model.load_state_dict(torch.load('models/79_net.pth'))
 
-        for phase in ['train', 'val']:
+    total_pos_loss = 0
+    total_ori_loss = 0
 
-            if phase == 'train':
-                scheduler.step()
-                model.train()
-            else:
-                model.eval()
-                break
+    num_data = len(data_loader)
 
-            for i, (inputs, poses) in enumerate(data_loader):
-                print(i)
+    for i, (inputs, poses) in enumerate(data_loader):
+        print(i)
 
-                inputs = inputs.to(device)
-                poses = poses.to(device)
+        inputs = inputs.to(device)
+        poses = poses.to(device)
 
-                # Zero the parameter gradient
-                optimizer.zero_grad()
+        # forward
+        pos_out, ori_out = model(inputs)
 
-                # forward
-                pos_out, ori_out = model(inputs)
+        pos_true = poses[:, :3]
+        ori_true = poses[:, 3:]
 
-                pos_true = poses[:, :3]
-                ori_true = poses[:, 3:]
+        beta = 500
+        ori_out = F.normalize(ori_out, p=2, dim=1)
+        ori_true = F.normalize(ori_true, p=2, dim=1)
 
-                beta = 500
-                ori_out = F.normalize(ori_out, p=2, dim=1)
-                ori_true = F.normalize(ori_true, p=2, dim=1)
+        loss_pos = F.mse_loss(pos_out, pos_true)
+        loss_ori = F.mse_loss(ori_out, ori_true)
 
-                loss_pos = F.mse_loss(pos_out, pos_true)
-                loss_ori = F.mse_loss(ori_out, ori_true)
+        loss_ori_print = np.sqrt(loss_ori.item())
+        loss_pos_print = np.sqrt(loss_pos.item())
 
-                loss = loss_pos + beta * loss_ori
+        total_pos_loss += loss_pos_print
+        total_ori_loss += loss_ori_print
 
-                loss_print = loss.item()
-                loss_ori_print = loss_ori.item()
-                loss_pos_print = loss_pos.item()
+        print('Loss: pos error {:.3f} / ori error {:.3f}'.format(loss_pos_print, loss_ori_print))
 
-                if phase == 'train':
-                    loss.backward()
-                    optimizer.step()
+    print('='*20)
+    print('Overall pose errer {:.3f} / {:.3f}'.format(total_pos_loss/num_data, total_ori_loss/num_data))
 
-                print('{} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(phase, loss_print, loss_pos_print, loss_ori_print))
-
-            save_filename = 'models/%s_net.pth' % (epoch)
-            # save_path = os.path.join('models', save_filename)
-            torch.save(model.cpu().state_dict(), save_filename)
-            if torch.cuda.is_available():
-                model.to(device)
 
 
 

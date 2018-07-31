@@ -20,9 +20,10 @@ class Solver():
         self.model = model_parser(self.config.model, self.config.fixed_weight)
 
         self.print_network(self.model, self.config.model)
+        self.model_save_path = 'models_%s' % self.config.model
+        self.summary_save_path = 'summary_%s' % self.config.model
 
         # TODO: Add load pretrained network, and start training
-
 
     def print_network(self, model, name):
         num_params = 0
@@ -37,16 +38,23 @@ class Solver():
     def train(self):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
+        self.model = self.model.to(device)
+
+        optimizer = optim.Adam(self.model.parameters(), lr=self.config.lr)
 
         scheduler = lr_scheduler.StepLR(optimizer, step_size=50)
 
-        num_epochs = self.config.num_epoch
+        num_epochs = self.config.num_epochs
+
+        if not os.path.exists(self.model_save_path):
+            os.makedirs(self.model_save_path)
 
         # Setup for tensorboard
         use_tensorboard = self.config.use_tensorboard
         if use_tensorboard:
-            writer = SummaryWriter(log_dir='./summary')
+            if not os.path.exists(self.summary_save_path):
+                os.makedirs(self.summary_save_path)
+            writer = SummaryWriter(log_dir=self.summary_save_path)
 
         since = time.time()
         n_iter = 0
@@ -65,12 +73,10 @@ class Solver():
                     self.model.train()
                 else:
                     self.model.eval()
-                    break
 
                 data_loader = self.data_loader[phase]
 
                 for i, (inputs, poses) in enumerate(data_loader):
-                    print(i)
 
                     inputs = inputs.to(device)
                     poses = poses.to(device)
@@ -114,7 +120,7 @@ class Solver():
                     print('{} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(phase, loss_print, loss_pos_print, loss_ori_print))
 
                 if phase == 'train':
-                    save_filename = 'models/%s_net.pth' % (epoch)
+                    save_filename = self.model_save_path + '/%s_net.pth' % epoch
                     # save_path = os.path.join('models', save_filename)
                     torch.save(self.model.cpu().state_dict(), save_filename)
                     if torch.cuda.is_available():
@@ -128,11 +134,51 @@ class Solver():
             print('=' * 40)
 
             if use_tensorboard:
-                writer.add_scalars('trainval/trainval', {'train':error_train,
-                                                         'val':error_val}, epoch)
+                writer.add_scalars('loss/trainval', {'train':error_train,
+                                                     'val':error_val}, epoch)
 
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
 
     def test(self):
-        sample = None
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        self.model = self.model.to(device)
+
+        print('Load pretrained model!')
+        self.model.load_state_dict(torch.load(self.model_save_path + '/79_net.pth'))
+
+        total_pos_loss = 0
+        total_ori_loss = 0
+
+        num_data = len(self.data_loader)
+
+        for i, (inputs, poses) in enumerate(self.data_loader):
+            print(i)
+
+            inputs = inputs.to(device)
+            poses = poses.to(device)
+
+            # forward
+            pos_out, ori_out = self.model(inputs)
+
+            pos_true = poses[:, :3]
+            ori_true = poses[:, 3:]
+
+            beta = 500
+            ori_out = F.normalize(ori_out, p=2, dim=1)
+            ori_true = F.normalize(ori_true, p=2, dim=1)
+
+            loss_pos = F.mse_loss(pos_out, pos_true)
+            loss_ori = F.mse_loss(ori_out, ori_true)
+
+            loss_ori_print = np.sqrt(loss_ori.item())
+            loss_pos_print = np.sqrt(loss_pos.item())
+
+            total_pos_loss += loss_pos_print
+            total_ori_loss += loss_ori_print
+
+            print('Error: pos error {:.3f} / ori error {:.3f}'.format(loss_pos_print, loss_ori_print))
+
+        print('=' * 20)
+        print('Overall pose errer {:.3f} / {:.3f}'.format(total_pos_loss / num_data, total_ori_loss / num_data))

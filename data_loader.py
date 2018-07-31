@@ -91,8 +91,8 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
         img_size = 300
         img_crop = 299
     elif model == 'Resnet':
-        img_size = 260
-        img_crop = 256
+        img_size = 230
+        img_crop = 224
 
     transform = transforms.Compose([
         transforms.Resize(img_size),
@@ -104,8 +104,10 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
     if mode == 'train':
         datasets = {'train': CustomDataset(image_path, metadata_path, 'train', transform, num_val),
                     'val': CustomDataset(image_path, metadata_path, 'val', transform, num_val)}
-        data_loaders = {x: DataLoader(datasets[x], batch_size, is_shuffle, num_workers=batch_size)
-                        for x in ['train', 'val']}
+        # data_loaders = {x: DataLoader(datasets[x], batch_size, is_shuffle, num_workers=batch_size)
+        #                 for x in ['train', 'val']}
+        data_loaders = {'train': DataLoader(datasets['train'], batch_size, is_shuffle, num_workers=batch_size),
+                        'val': DataLoader(datasets['val'], batch_size, True, num_workers=batch_size)}
     elif mode == 'test':
         batch_size = 1
         is_shuffle = False

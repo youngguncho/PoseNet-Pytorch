@@ -3,3 +3,4 @@ __pycache__
 *.pickle
 runs
 models*
+summary*

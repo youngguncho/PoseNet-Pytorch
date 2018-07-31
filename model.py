@@ -21,7 +21,7 @@ def model_parser(model, fixed_weight=False):
         base_model = models.inception_v3(pretrained=True)
         network = GoogleNet(base_model, fixed_weight)
     elif model == 'Resnet':
-        base_model - models.resnet34(pretrained=True)
+        base_model = models.resnet34(pretrained=True)
         network = ResNet(base_model, fixed_weight)
     else:
         assert 'Unvalid Model'
@@ -44,6 +44,8 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         x = self.base_model(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc_last(x)
         position = self.fc_position(x)
         rotation = self.fc_rotation(x)
 

@@ -21,17 +21,17 @@ def main(config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
+    parser.add_argument('--mode', type=str, default='test', choices=['train', 'test'])
 
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--beta', type=float, default=500)
     parser.add_argument('--shuffle', type=bool, default=False)
     parser.add_argument('--fixed_weight', type=bool, default=False)
-    parser.add_argument('--model', type=str, default='Resnet', choices=['Googlenet', 'Resnet'])
+    parser.add_argument('--model', type=str, default='Googlenet', choices=['Googlenet', 'Resnet'])
     parser.add_argument('--pretrained_model', type=str, default=None)
 
     parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege')
-    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_train.txt')
+    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_test.txt')
 
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_epochs_decay', type=int, default=10)
     parser.add_argument('--num_iters', type=int, default=200000) # 200000
     parser.add_argument('--num_iters_decay', type=int, default=100000)
-    parser.add_argument('--batch_size', type=int, default=4) # 16
+    parser.add_argument('--batch_size', type=int, default=3) # 16
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings

@@ -13,6 +13,7 @@ from torchvision import transforms, models, datasets
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from PIL import Image
+from tensorboardX import SummaryWriter
 
 
 
@@ -259,7 +260,12 @@ if __name__ == '__main__':
     scheduler = lr_scheduler.StepLR(optimizer, step_size=50)
 
     num_epochs = 80
+
+    # Setup for tensorboard
+    writer = SummaryWriter()
+
     since = time.time()
+    n_iter = 0
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs-1))
@@ -302,10 +308,15 @@ if __name__ == '__main__':
                 loss_ori_print = loss_ori.item()
                 loss_pos_print = loss_pos.item()
 
+                writer.add_scalar('loss/overall_loss', loss_print, n_iter)
+                writer.add_scalar('loss/position_loss', loss_pos_print, n_iter)
+                writer.add_scalar('loss/rotation_loss', loss_ori_print, n_iter)
+
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()
 
+                n_iter += 1
                 print('{} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(phase, loss_print, loss_pos_print, loss_ori_print))
 
             save_filename = 'models/%s_net.pth' % (epoch)

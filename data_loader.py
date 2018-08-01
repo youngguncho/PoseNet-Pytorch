@@ -41,15 +41,9 @@ class CustomDataset(Dataset):
             filename = os.path.join(self.image_path, filename)
 
             if self.mode == 'train':
-                # if i < 100:
-                #     self.test_filenames.append(filename)
-                #     self.test_poses.append(values)
-                # else:
-                if i < num_val:
-                    continue
-
-                self.train_filenames.append(filename)
-                self.train_poses.append(values)
+                if i > num_val:
+                    self.train_filenames.append(filename)
+                    self.train_poses.append(values)
             elif self.mode == 'test':
                 self.test_filenames.append(filename)
                 self.test_poses.append(values)
@@ -107,7 +101,7 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
         # data_loaders = {x: DataLoader(datasets[x], batch_size, is_shuffle, num_workers=batch_size)
         #                 for x in ['train', 'val']}
         data_loaders = {'train': DataLoader(datasets['train'], batch_size, is_shuffle, num_workers=batch_size),
-                        'val': DataLoader(datasets['val'], batch_size, True, num_workers=batch_size)}
+                        'val': DataLoader(datasets['val'], batch_size, is_shuffle, num_workers=batch_size)}
     elif mode == 'test':
         batch_size = 1
         is_shuffle = False

@@ -2,6 +2,7 @@ import os
 import argparse
 from data_loader import get_loader
 from solver import Solver
+import copy
 #from torch.backends import cudnn
 
 
@@ -31,31 +32,65 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained_model', type=str, default=None)
 
     parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege')
-    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_train.txt')
+    parser.add_argument('--metadata_path', type=str,
+                        default='/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_train.txt')
 
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)
     # parser.add_argument('--dataset', type=str, default='Oxford', choices=['NCLT', 'VKITTI', 'Oxford', 'QUT'])
-    parser.add_argument('--attribute', nargs='+', default=['overcast', 'snow', 'night', 'fog'])
-    parser.add_argument('--num_epochs', type=int, default=180)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--num_epochs_decay', type=int, default=10)
-    parser.add_argument('--num_iters', type=int, default=200000) # 200000
-    parser.add_argument('--num_iters_decay', type=int, default=100000)
-    parser.add_argument('--batch_size', type=int, default=32) # 16
-    parser.add_argument('--num_workers', type=int, default=1)
+    parser.add_argument('--batch_size', type=int, default=8) # 16
 
     # Test settings
     parser.add_argument('--test_model', type=str, default='29_3000')
-    parser.add_argument('--target_attributes', nargs='+', default=['overcast', 'night'])
 
     # Misc
-
     parser.add_argument('--use_tensorboard', type=bool, default=True)
 
     # Step size
     parser.add_argument('--log_step', type=int, default=10)
-    parser.add_argument('--sample_step', type=int, default=1000)
     parser.add_argument('--model_save_step', type=int, default=10)
 
-    config = parser.parse_args()
-    main(config)
+    config_default = parser.parse_args()
+
+    # -------------------------
+    # -------------------------
+    # Evaluate fixed weight
+    config = copy.deepcopy(config_default)
+
+    config.sequential_mode = 'fixed_weight'
+    list_roi = [False, True]
+
+    for val in list_roi:
+        config.fixed_weight = val
+        config.mode = 'train'
+        main(config)
+        config.mode = 'test'
+        main(config)
+
+    # Evaluate beta
+    config = copy.deepcopy(config_default)
+
+    config.sequential_mode = 'beta'
+    list_roi = [500, 1000, 1500]
+
+    for val in list_roi:
+        config.beta = val
+        config.mode = 'train'
+        main(config)
+        config.mode = 'test'
+        main(config)
+
+    # Evaluate learning rate
+    config = copy.deepcopy(config_default)
+
+    config.sequential_mode = 'learning_rate'
+    list_roi = [0.0001, 0.0005, 0.001]
+
+    for val in list_roi:
+        config.lr = val
+        config.mode = 'train'
+        main(config)
+        config.mode = 'test'
+        main(config)

@@ -1,17 +1,12 @@
 import os
 import time
-import copy
 import torch
-import torchvision
-import numpy as np
-import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torchvision import transforms, models, datasets
 import torch.nn.functional as F
-from PIL import Image
+from torch.optim import lr_scheduler
 from model import model_parser
 from tensorboardX import SummaryWriter
+
 
 class Solver():
     def __init__(self, data_loader, config):
@@ -23,7 +18,36 @@ class Solver():
         self.model_save_path = 'models_%s' % self.config.model
         self.summary_save_path = 'summary_%s' % self.config.model
 
-        # TODO: Add load pretrained network, and start training
+        if self.config.pretrained_model:
+            self.load_pretrained_model()
+
+        if self.config.sequential_mode:
+            self.set_sequential_mode()
+
+    # Inner Functions #
+    def set_sequential_mode(self):
+        if self.config.sequential_mode == 'model':
+            self.model_save_path = 'models/%s/models_%s' % (self.config.sequential_mode, self.config.model)
+            self.summary_save_path = 'summaries/%s/summary_%s' % (self.config.sequential_mode, self.config.model)
+        elif self.config.sequential_mode == 'fixed_weight':
+            self.model_save_path = 'models/%s/models_%d' % (self.config.sequential_mode, int(self.config.fixed_weight))
+            self.summary_save_path = 'summaries/%s/summary_%d' % (self.config.sequential_mode, int(self.config.fixed_weight))
+        elif self.config.sequential_mode == 'batch_size':
+            self.model_save_path = 'models/%s/models_%d' % (self.config.sequential_mode, self.config.batch_size)
+            self.summary_save_path = 'summaries/%s/summary_%d' % (self.config.sequential_mode, self.config.batch_size)
+        elif self.config.sequential_mode == 'learning_rate':
+            self.model_save_path = 'models/%s/models_%f' % (self.config.sequential_mode, self.config.lr)
+            self.summary_save_path = 'summaries/%s/summary_%f' % (self.config.sequential_mode, self.config.lr)
+        elif self.config.sequential_mode == 'beta':
+            self.model_save_path = 'models/%s/models_%d' % (self.config.sequential_mode, self.config.beta)
+            self.summary_save_path = 'summaries/%s/summary_%d' % (self.config.sequential_mode, self.config.beta)
+        else:
+            assert 'Unvalid sequential mode'
+
+    def load_pretrained_model(self):
+        model_path = self.model_save_path + '/%s_net.pth' % self.config.pretrained_model
+        self.model.load_state_dict(torch.load(model_path))
+        print('Load pretrained network: ', model_path)
 
     def print_network(self, model, name):
         num_params = 0
@@ -59,7 +83,18 @@ class Solver():
         since = time.time()
         n_iter = 0
 
-        for epoch in range(num_epochs):
+        # For pretrained network
+        start_epoch = 1
+        if self.config.pretrained_model:
+            start_epoch = int(self.config.pretrained_model)
+
+        # Pre-define variables to get the best model
+        best_train_loss = 10000
+        best_val_loss = 10000
+        best_train_model = None
+        best_val_model = None
+
+        for epoch in range(start_epoch, num_epochs):
             print('Epoch {}/{}'.format(epoch, num_epochs-1))
             print('-'*20)
 
@@ -117,17 +152,26 @@ class Solver():
                         optimizer.step()
                         n_iter += 1
 
-                    print('{} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(phase, loss_print, loss_pos_print, loss_ori_print))
+                    print('{}th {} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(i, phase, loss_print, loss_pos_print, loss_ori_print))
 
-                if phase == 'train':
+            # For each epoch
+            error_train = sum(error_train) / len(error_train)
+            error_val = sum(error_val) / len(error_val)
+
+            if phase == 'train':
+                if (epoch+1) % self.config.model_save_step == 0:
+                    if error_train < best_train_loss:
+                        best_train_loss = error_train
+                        best_train_model = epoch
+                    if error_val < best_val_loss:
+                        best_val_loss = error_val
+                        best_val_model = epoch
+
                     save_filename = self.model_save_path + '/%s_net.pth' % epoch
                     # save_path = os.path.join('models', save_filename)
                     torch.save(self.model.cpu().state_dict(), save_filename)
                     if torch.cuda.is_available():
                         self.model.to(device)
-
-            error_train = sum(error_train) / len(error_train)
-            error_val = sum(error_val) / len(error_val)
 
             print('Train and Validaion error {} / {}'.format(error_train, error_val))
             print('=' * 40)
@@ -140,16 +184,26 @@ class Solver():
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
 
+        if self.config.sequential_mode:
+            f = open(self.summary_save_path + '/train.csv', 'w')
+
+            f.write('{},{}\n{},{}'.format(best_train_loss, best_train_model,
+                                          best_val_loss, best_val_model))
+            f.close()
+            # return (best_train_loss, best_train_model), (best_val_loss, best_val_model)
+
     def test(self):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.model = self.model.to(device)
 
         print('Load pretrained model!')
-        self.model.load_state_dict(torch.load(self.model_save_path + '/79_net.pth'))
+        self.model.load_state_dict(torch.load(self.model_save_path + '/175_net.pth'))
 
         total_pos_loss = 0
         total_ori_loss = 0
+        pos_loss_arr = []
+        ori_loss_arr = []
 
         num_data = len(self.data_loader)
 
@@ -165,20 +219,28 @@ class Solver():
             pos_true = poses[:, :3]
             ori_true = poses[:, 3:]
 
-            beta = 500
             ori_out = F.normalize(ori_out, p=2, dim=1)
             ori_true = F.normalize(ori_true, p=2, dim=1)
 
-            loss_pos = F.mse_loss(pos_out, pos_true)
-            loss_ori = F.mse_loss(ori_out, ori_true)
-
-            loss_ori_print = np.sqrt(loss_ori.item())
-            loss_pos_print = np.sqrt(loss_pos.item())
+            loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
+            loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
 
             total_pos_loss += loss_pos_print
             total_ori_loss += loss_ori_print
 
-            print('Error: pos error {:.3f} / ori error {:.3f}'.format(loss_pos_print, loss_ori_print))
+            pos_loss_arr.append(loss_pos_print)
+            ori_loss_arr.append(loss_ori_print)
 
+            print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
+
+        position_error = sum(pos_loss_arr)/len(pos_loss_arr)
+        rotation_error = sum(ori_loss_arr)/len(ori_loss_arr)
         print('=' * 20)
-        print('Overall pose errer {:.3f} / {:.3f}'.format(total_pos_loss / num_data, total_ori_loss / num_data))
+        print('Overall pose errer {:.3f} / {:.3f}'.format(position_error, rotation_error))
+
+        if self.config.sequential_mode:
+            f = open(self.summary_save_path + '/test.csv', 'w')
+            f.write('{},{}'.format(position_error, rotation_error))
+            f.close()
+            # return position_error, rotation_error
+

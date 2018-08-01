@@ -3,10 +3,11 @@ import argparse
 from data_loader import get_loader
 from solver import Solver
 import copy
-#from torch.backends import cudnn
+from torch.backends import cudnn
 
 
 def main(config):
+    cudnn.benchmark = True
     data_loader = get_loader(config.model, config.image_path, config.metadata_path, config.mode, config.batch_size,
                              config.shuffle)
 

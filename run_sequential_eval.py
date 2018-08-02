@@ -58,15 +58,29 @@ if __name__ == '__main__':
     # -------------------------
     # -------------------------
     # Evaluate fixed weight
+    # config = copy.deepcopy(config_default)
+    #
+    # config.sequential_mode = 'fixed_weight'
+    # list_roi = [False, True]
+    #
+    # for val in list_roi:
+    #     config.fixed_weight = val
+    #     config.mode = 'train'
+    #     main(config)
+    #     config.mode = 'test'
+    #     main(config)
+
+    # Evaluate learning rate
     config = copy.deepcopy(config_default)
 
-    config.sequential_mode = 'fixed_weight'
-    list_roi = [False, True]
+    config.sequential_mode = 'learning_rate'
+    list_roi = [0.0001, 0.0005, 0.001]
 
     for val in list_roi:
-        config.fixed_weight = val
+        config.lr = val
         config.mode = 'train'
         main(config)
+        config.metadata_path = '/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_test .txt'
         config.mode = 'test'
         main(config)
 
@@ -81,17 +95,5 @@ if __name__ == '__main__':
         config.mode = 'train'
         main(config)
         config.mode = 'test'
-        main(config)
-
-    # Evaluate learning rate
-    config = copy.deepcopy(config_default)
-
-    config.sequential_mode = 'learning_rate'
-    list_roi = [0.0001, 0.0005, 0.001]
-
-    for val in list_roi:
-        config.lr = val
-        config.mode = 'train'
-        main(config)
-        config.mode = 'test'
+        config.metadata_path = '/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_test .txt'
         main(config)

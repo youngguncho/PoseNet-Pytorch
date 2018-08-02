@@ -2,10 +2,11 @@ import os
 import argparse
 from data_loader import get_loader
 from solver import Solver
-#from torch.backends import cudnn
+from torch.backends import cudnn
 
 
 def main(config):
+    cudnn.benchmark = True
     data_loader = get_loader(config.model, config.image_path, config.metadata_path, config.mode, config.batch_size,
                              config.shuffle)
 
@@ -36,17 +37,13 @@ if __name__ == '__main__':
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)
     # parser.add_argument('--dataset', type=str, default='Oxford', choices=['NCLT', 'VKITTI', 'Oxford', 'QUT'])
-    parser.add_argument('--attribute', nargs='+', default=['overcast', 'snow', 'night', 'fog'])
-    parser.add_argument('--num_epochs', type=int, default=180)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--num_epochs_decay', type=int, default=10)
-    parser.add_argument('--num_iters', type=int, default=200000) # 200000
-    parser.add_argument('--num_iters_decay', type=int, default=100000)
-    parser.add_argument('--batch_size', type=int, default=32) # 16
+    parser.add_argument('--batch_size', type=int, default=8) # 16
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings
     parser.add_argument('--test_model', type=str, default='29_3000')
-    parser.add_argument('--target_attributes', nargs='+', default=['overcast', 'night'])
 
     # Misc
 

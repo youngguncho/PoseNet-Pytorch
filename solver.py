@@ -84,7 +84,7 @@ class Solver():
         n_iter = 0
 
         # For pretrained network
-        start_epoch = 1
+        start_epoch = 0
         if self.config.pretrained_model:
             start_epoch = int(self.config.pretrained_model)
 
@@ -158,20 +158,19 @@ class Solver():
             error_train = sum(error_train) / len(error_train)
             error_val = sum(error_val) / len(error_val)
 
-            if phase == 'train':
-                if (epoch+1) % self.config.model_save_step == 0:
-                    if error_train < best_train_loss:
-                        best_train_loss = error_train
-                        best_train_model = epoch
-                    if error_val < best_val_loss:
-                        best_val_loss = error_val
-                        best_val_model = epoch
+            if (epoch+1) % self.config.model_save_step == 0:
+                if error_train < best_train_loss:
+                    best_train_loss = error_train
+                    best_train_model = epoch
+                if error_val < best_val_loss:
+                    best_val_loss = error_val
+                    best_val_model = epoch
 
-                    save_filename = self.model_save_path + '/%s_net.pth' % epoch
-                    # save_path = os.path.join('models', save_filename)
-                    torch.save(self.model.cpu().state_dict(), save_filename)
-                    if torch.cuda.is_available():
-                        self.model.to(device)
+                save_filename = self.model_save_path + '/%s_net.pth' % epoch
+                # save_path = os.path.join('models', save_filename)
+                torch.save(self.model.cpu().state_dict(), save_filename)
+                if torch.cuda.is_available():
+                    self.model.to(device)
 
             print('Train and Validaion error {} / {}'.format(error_train, error_val))
             print('=' * 40)
@@ -197,8 +196,9 @@ class Solver():
 
         self.model = self.model.to(device)
 
-        print('Load pretrained model!')
-        self.model.load_state_dict(torch.load(self.model_save_path + '/175_net.pth'))
+        test_model_path = self.model_save_path + '_pre/{}_net.pth'.format(self.config.test_model)
+        print('Load pretrained model: ', test_model_path)
+        self.model.load_state_dict(torch.load(test_model_path))
 
         total_pos_loss = 0
         total_ori_loss = 0

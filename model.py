@@ -38,9 +38,9 @@ class ResNet(nn.Module):
             for param in self.base_model.parameters():
                 param.requires_grad = False
 
-        self.fc_last = nn.Linear(512, 2048, bias=False)
-        self.fc_position = nn.Linear(2048, 3, bias=False)
-        self.fc_rotation = nn.Linear(2048, 4, bias=False)
+        self.fc_last = nn.Linear(512, 2048, bias=True)
+        self.fc_position = nn.Linear(2048, 3, bias=True)
+        self.fc_rotation = nn.Linear(2048, 4, bias=True)
 
     def forward(self, x):
         x = self.base_model(x)
@@ -83,8 +83,8 @@ class GoogleNet(nn.Module):
                 param.requires_grad = False
 
         # Out 2
-        self.pos2 = nn.Linear(2048, 3, bias=False)
-        self.ori2 = nn.Linear(2048, 4, bias=False)
+        self.pos2 = nn.Linear(2048, 3, bias=True)
+        self.ori2 = nn.Linear(2048, 4, bias=True)
 
     def forward(self, x):
         # 299 x 299 x 3

@@ -17,12 +17,16 @@ from PIL import Image
 
 def model_parser(model, fixed_weight=False, dropout_rate=0.0):
     base_model = None
+
     if model == 'Googlenet':
         base_model = models.inception_v3(pretrained=True)
         network = GoogleNet(base_model, fixed_weight, dropout_rate)
     elif model == 'Resnet':
         base_model = models.resnet34(pretrained=True)
         network = ResNet(base_model, fixed_weight, dropout_rate)
+    elif model == 'ResnetSimple':
+        base_model = models.resnet34(pretrained=True)
+        network = ResNetSimple(base_model, fixed_weight)
     else:
         assert 'Unvalid Model'
 
@@ -32,14 +36,10 @@ def model_parser(model, fixed_weight=False, dropout_rate=0.0):
 class ResNet(nn.Module):
     def __init__(self, base_model, fixed_weight=False, dropout_rate=0.0):
         super(ResNet, self).__init__()
-        print(base_model)
         self.dropout_rate = dropout_rate
         feat_in = base_model.fc.in_features
 
         self.base_model = nn.Sequential(*list(base_model.children())[:-1])
-        # self.base_model = base_model
-
-
         # self.base_model = base_model
 
         if fixed_weight:
@@ -57,7 +57,6 @@ class ResNet(nn.Module):
                 nn.init.kaiming_normal(module.weight.data)
                 if module.bias is not None:
                     nn.init.constant(module.bias.data, 0)
-
 
         # nn.init.kaiming_uniform(self.fc_last.weight)
         # nn.init.kaiming_uniform(self.fc_position.weight)
@@ -77,45 +76,39 @@ class ResNet(nn.Module):
 
         return position, rotation
 
-class ResNetPrev(nn.Module):
-    def __init__(self, base_model, fixed_weight=False):
-        super(ResNetPrev, self).__init__()
+
+class ResNetSimple(nn.Module):
+    def __init__(self, base_model, fixed_weight=False, dropout_rate=0.0):
+        super(ResNetSimple, self).__init__()
+        self.dropout_rate = dropout_rate
+        feat_in = base_model.fc.in_features
+
         self.base_model = nn.Sequential(*list(base_model.children())[:-1])
         # self.base_model = base_model
-
 
         if fixed_weight:
             for param in self.base_model.parameters():
                 param.requires_grad = False
 
-        self.fc_last = nn.Linear(512, 2048, bias=True)
-        self.fc_position = nn.Linear(2048, 3, bias=True)
-        self.fc_rotation = nn.Linear(2048, 4, bias=True)
+        # self.fc_last = nn.Linear(feat_in, 2048, bias=True)
+        self.fc_position = nn.Linear(feat_in, 3, bias=False)
+        self.fc_rotation = nn.Linear(feat_in, 4, bias=False)
 
-        init_modules = [self.fc_last, self.fc_position, self.fc_rotation]
+        init_modules = [self.fc_position, self.fc_rotation]
 
         for module in init_modules:
             if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
                 nn.init.kaiming_normal(module.weight.data)
                 if module.bias is not None:
-                    nn.init.constant(module.bias.data)
-
-
-
-        # nn.init.kaiming_uniform(self.fc_last.weight)
-        # nn.init.kaiming_uniform(self.fc_position.weight)
-        # nn.init.kaiming_uniform(self.fc_rotation.weight)
+                    nn.init.constant(module.bias.data, 0)
 
     def forward(self, x):
         x = self.base_model(x)
         x = x.view(x.size(0), -1)
-        x = self.fc_last(x)
         position = self.fc_position(x)
         rotation = self.fc_rotation(x)
 
         return position, rotation
-
-
 
 class GoogleNet(nn.Module):
     """ PoseNet using Inception V3 """

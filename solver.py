@@ -1,5 +1,6 @@
 import os
 import time
+import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -12,6 +13,11 @@ class Solver():
     def __init__(self, data_loader, config):
         self.data_loader = data_loader
         self.config = config
+
+        # do not use dropout if not bayesian mode
+        # if not self.config.bayesian:
+        #     self.config.dropout_rate = 0.0
+
         self.model = model_parser(self.config.model, self.config.fixed_weight, self.config.dropout_rate)
 
         self.print_network(self.model, self.config.model)
@@ -132,8 +138,11 @@ class Solver():
                     ori_out = F.normalize(ori_out, p=2, dim=1)
                     ori_true = F.normalize(ori_true, p=2, dim=1)
 
-                    loss_pos = F.mse_loss(pos_out, pos_true)
-                    loss_ori = F.mse_loss(ori_out, ori_true)
+                    # loss_pos = F.mse_loss(pos_out, pos_true)
+                    # loss_ori = F.mse_loss(ori_out, ori_true)
+
+                    loss_pos = F.l1_loss(pos_out, pos_true)
+                    loss_ori = F.l1_loss(ori_out, ori_true)
 
                     loss = loss_pos + beta * loss_ori
 
@@ -208,6 +217,10 @@ class Solver():
         total_ori_loss = 0
         pos_loss_arr = []
         ori_loss_arr = []
+        if self.config.bayesian:
+            pred_mean = []
+            pred_var = []
+
 
         num_data = len(self.data_loader)
 
@@ -218,7 +231,19 @@ class Solver():
             poses = poses.to(device)
 
             # forward
-            pos_out, ori_out = self.model(inputs)
+            if self.config.bayesian:
+                num_bayesian_test = 30
+                pos_array = []
+                ori_array = []
+                for _ in range(num_bayesian_test):
+                    pos_single, ori_single = self.model(input)
+                    pos_array.append(pos_single.cpu.numpy())
+                    ori_array.append(ori_single.cpu.numpy())
+
+                pos_out = torch.from_numpy(np.mean(pos_array, axis=0))
+                ori_out = torch.from_numpy(np.mean(ori_array, axis=0))
+            else:
+                pos_out, ori_out = self.model(inputs)
 
             pos_true = poses[:, :3]
             ori_true = poses[:, 3:]

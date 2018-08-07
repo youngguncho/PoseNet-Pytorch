@@ -85,17 +85,18 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
         img_size = 300
         img_crop = 299
     elif model == 'Resnet':
-        img_size = 230
+        img_size = 256
         img_crop = 224
 
-    transform = transforms.Compose([
-        transforms.Resize(img_size),
-        transforms.CenterCrop(img_crop),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
 
     if mode == 'train':
+        transform = transforms.Compose([
+            transforms.Resize(img_size),
+            transforms.RandomCrop(img_crop),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+
         datasets = {'train': CustomDataset(image_path, metadata_path, 'train', transform, num_val),
                     'val': CustomDataset(image_path, metadata_path, 'val', transform, num_val)}
         # data_loaders = {x: DataLoader(datasets[x], batch_size, is_shuffle, num_workers=batch_size)
@@ -103,6 +104,13 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
         data_loaders = {'train': DataLoader(datasets['train'], batch_size, is_shuffle, num_workers=batch_size),
                         'val': DataLoader(datasets['val'], batch_size, is_shuffle, num_workers=batch_size)}
     elif mode == 'test':
+        transform = transforms.Compose([
+            transforms.Resize(img_size),
+            transforms.CenterCrop(img_crop),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+
         batch_size = 1
         is_shuffle = False
         dataset = CustomDataset(image_path, metadata_path, 'test', transform)

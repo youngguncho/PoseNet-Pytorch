@@ -21,10 +21,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
+    parser.add_argument('--bayesian', type=bool, default=False, help='Bayesian Posenet, True or False')
     parser.add_argument('--sequential_mode', type=str, default=None,
                         choices=[None, 'model', 'fixed_weight', 'batch_size', 'learning_rate', 'beta'])
 
-    parser.add_argument('--lr', type=float, default=0.0001)
+    parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--beta', type=float, default=500)
     parser.add_argument('--dropout_rate', type=float, default=0.5, help='range 0.0 to 1.0')
     parser.add_argument('--shuffle', type=bool, default=False)
@@ -38,9 +39,9 @@ if __name__ == '__main__':
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)
     # parser.add_argument('--dataset', type=str, default='Oxford', choices=['NCLT', 'VKITTI', 'Oxford', 'QUT'])
-    parser.add_argument('--num_epochs', type=int, default=300)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--num_epochs_decay', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=64) # 16
+    parser.add_argument('--batch_size', type=int, default=8) # 16
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     # Step size
     parser.add_argument('--log_step', type=int, default=10)
     parser.add_argument('--sample_step', type=int, default=1000)
-    parser.add_argument('--model_save_step', type=int, default=10)
+    parser.add_argument('--model_save_step', type=int, default=50)
 
     config = parser.parse_args()
     main(config)

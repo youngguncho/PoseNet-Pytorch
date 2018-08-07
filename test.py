@@ -21,6 +21,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode', type=str, default='test', choices=['train', 'test'])
+    parser.add_argument('--bayesian', type=bool, default=False, help='Bayesian Posenet, True or False')
     parser.add_argument('--sequential_mode', type=str, default=None,
                         choices=[None, 'fixed_weight', 'batch_size', 'learning_rate', 'beta'])
     parser.add_argument('--lr', type=float, default=0.0001)
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings
-    parser.add_argument('--test_model', type=str, default='319')
+    parser.add_argument('--test_model', type=str, default='149')
     parser.add_argument('--target_attributes', nargs='+', default=['overcast', 'night'])
 
     # Misc

@@ -25,10 +25,10 @@ if __name__ == '__main__':
     parser.add_argument('--sequential_mode', type=str, default=None,
                         choices=[None, 'model', 'fixed_weight', 'batch_size', 'learning_rate', 'beta'])
 
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--beta', type=float, default=500)
     parser.add_argument('--dropout_rate', type=float, default=0.5, help='range 0.0 to 1.0')
-    parser.add_argument('--shuffle', type=bool, default=False)
+    parser.add_argument('--shuffle', type=bool, default=True)
     parser.add_argument('--fixed_weight', type=bool, default=False)
     parser.add_argument('--model', type=str, default='Resnet', choices=['Googlenet', 'Resnet'])
     parser.add_argument('--pretrained_model', type=str, default=None)
@@ -39,9 +39,9 @@ if __name__ == '__main__':
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)
     # parser.add_argument('--dataset', type=str, default='Oxford', choices=['NCLT', 'VKITTI', 'Oxford', 'QUT'])
-    parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--num_epochs_decay', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=8) # 16
+    parser.add_argument('--num_epochs', type=int, default=240)
+    parser.add_argument('--num_epochs_decay', type=int, default=80)
+    parser.add_argument('--batch_size', type=int, default=75) # 16
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings

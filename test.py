@@ -47,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings
-    parser.add_argument('--test_model', type=str, default='149')
+    parser.add_argument('--test_model', type=str, default=None)
     parser.add_argument('--target_attributes', nargs='+', default=['overcast', 'night'])
 
     # Misc

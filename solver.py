@@ -65,17 +65,21 @@ class Solver():
         print(model)
         print('*' * 20)
 
+    def loss_func(self, input, target):
+        diff = torch.norm(input-target, dim=1)
+        diff = torch.mean(diff)
+        return diff
+
     def train(self):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.model = self.model.to(device)
 
         optimizer = optim.Adam(self.model.parameters(),
-                               eps=1,
                                lr=self.config.lr,
-                               weight_decay=0.0005)
+                               weight_decay=0.0002)
 
-        # scheduler = lr_scheduler.StepLR(optimizer, )
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=self.config.num_epochs_decay, gamma=0.1)
 
         num_epochs = self.config.num_epochs
 
@@ -113,7 +117,7 @@ class Solver():
             for phase in ['train', 'val']:
 
                 if phase == 'train':
-                    # scheduler.step()
+                    scheduler.step()
                     self.model.train()
                 else:
                     self.model.eval()
@@ -141,8 +145,10 @@ class Solver():
                     # loss_pos = F.mse_loss(pos_out, pos_true)
                     # loss_ori = F.mse_loss(ori_out, ori_true)
 
-                    loss_pos = F.l1_loss(pos_out, pos_true)
-                    loss_ori = F.l1_loss(ori_out, ori_true)
+                    # loss_pos = F.l1_loss(pos_out, pos_true)
+                    # loss_ori = F.l1_loss(ori_out, ori_true)
+                    loss_pos = self.loss_func(pos_out, pos_true)
+                    loss_ori = self.loss_func(ori_out, ori_true)
 
                     loss = loss_pos + beta * loss_ori
 
@@ -171,18 +177,23 @@ class Solver():
             error_val = sum(error_val) / len(error_val)
 
             if (epoch+1) % self.config.model_save_step == 0:
-                if error_train < best_train_loss:
-                    best_train_loss = error_train
-                    best_train_model = epoch
-                if error_val < best_val_loss:
-                    best_val_loss = error_val
-                    best_val_model = epoch
-
                 save_filename = self.model_save_path + '/%s_net.pth' % epoch
                 # save_path = os.path.join('models', save_filename)
                 torch.save(self.model.cpu().state_dict(), save_filename)
                 if torch.cuda.is_available():
                     self.model.to(device)
+
+            if error_train < best_train_loss:
+                best_train_loss = error_train
+                best_train_model = epoch
+            if error_val < best_val_loss:
+                best_val_loss = error_val
+                best_val_model = epoch
+                save_filename = self.model_save_path + '/best_net.pth'
+                torch.save(self.model.cpu().state_dict(), save_filename)
+                if torch.cuda.is_available():
+                    self.model.to(device)
+
 
             print('Train and Validaion error {} / {}'.format(error_train, error_val))
             print('=' * 40)
@@ -208,8 +219,11 @@ class Solver():
 
         self.model = self.model.to(device)
 
-        test_model_path = self.model_save_path + '/{}_net.pth'.format(self.config.test_model)
-        # test_model_path = '/home/yg/git/youngguncho/PoseNet-Pytorch/models/learning_rate/models_0.000100/{}_net.pth'.format(self.config.test_model)
+        if self.config.test_model is None:
+            test_model_path = self.model_save_path + '/best_net.pth'
+        else:
+            test_model_path = self.model_save_path + '/{}_net.pth'.format(self.config.test_model)
+
         print('Load pretrained model: ', test_model_path)
         self.model.load_state_dict(torch.load(test_model_path))
 
@@ -233,15 +247,15 @@ class Solver():
             # forward
             if self.config.bayesian:
                 num_bayesian_test = 30
-                pos_array = []
-                ori_array = []
-                for _ in range(num_bayesian_test):
+                pos_array = torch.Tensor(num_bayesian_test, 3)
+                ori_array = torch.Tensor(num_bayesian_test, 4)
+                for i in range(num_bayesian_test):
                     pos_single, ori_single = self.model(input)
-                    pos_array.append(pos_single.cpu.numpy())
-                    ori_array.append(ori_single.cpu.numpy())
+                    pos_array[i, :] = pos_single
+                    ori_array[i, :] = ori_single
 
-                pos_out = torch.from_numpy(np.mean(pos_array, axis=0))
-                ori_out = torch.from_numpy(np.mean(ori_array, axis=0))
+                pos_out = torch.mean(pos_array)
+                ori_out = torch.mean(ori_array)
             else:
                 pos_out, ori_out = self.model(inputs)
 
@@ -251,8 +265,15 @@ class Solver():
             ori_out = F.normalize(ori_out, p=2, dim=1)
             ori_true = F.normalize(ori_true, p=2, dim=1)
 
-            loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
-            loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
+            # loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
+            # loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
+
+            loss_pos_print = F.l1_loss(pos_out, pos_true).item()
+            loss_ori_print = F.l1_loss(ori_out, ori_true).item()
+
+            print(pos_out)
+            print(pos_true)
+            print(F.pairwise_distance(pos_out, pos_true, p=2))
 
             total_pos_loss += loss_pos_print
             total_ori_loss += loss_ori_print

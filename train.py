@@ -39,9 +39,9 @@ if __name__ == '__main__':
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)
     # parser.add_argument('--dataset', type=str, default='Oxford', choices=['NCLT', 'VKITTI', 'Oxford', 'QUT'])
-    parser.add_argument('--num_epochs', type=int, default=240)
-    parser.add_argument('--num_epochs_decay', type=int, default=80)
-    parser.add_argument('--batch_size', type=int, default=75) # 16
+    parser.add_argument('--num_epochs', type=int, default=400)
+    parser.add_argument('--num_epochs_decay', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=64) # 16
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings

@@ -77,7 +77,7 @@ class Solver():
 
         optimizer = optim.Adam(self.model.parameters(),
                                lr=self.config.lr,
-                               weight_decay=0.0002)
+                               weight_decay=0.0005)
 
         scheduler = lr_scheduler.StepLR(optimizer, step_size=self.config.num_epochs_decay, gamma=0.1)
 
@@ -142,13 +142,13 @@ class Solver():
                     ori_out = F.normalize(ori_out, p=2, dim=1)
                     ori_true = F.normalize(ori_true, p=2, dim=1)
 
-                    # loss_pos = F.mse_loss(pos_out, pos_true)
-                    # loss_ori = F.mse_loss(ori_out, ori_true)
+                    loss_pos = F.mse_loss(pos_out, pos_true)
+                    loss_ori = F.mse_loss(ori_out, ori_true)
 
                     # loss_pos = F.l1_loss(pos_out, pos_true)
                     # loss_ori = F.l1_loss(ori_out, ori_true)
-                    loss_pos = self.loss_func(pos_out, pos_true)
-                    loss_ori = self.loss_func(ori_out, ori_true)
+                    # loss_pos = self.loss_func(pos_out, pos_true)
+                    # loss_ori = self.loss_func(ori_out, ori_true)
 
                     loss = loss_pos + beta * loss_ori
 
@@ -173,8 +173,10 @@ class Solver():
                     print('{}th {} Loss: total loss {:.3f} / pos loss {:.3f} / ori loss {:.3f}'.format(i, phase, loss_print, loss_pos_print, loss_ori_print))
 
             # For each epoch
-            error_train = sum(error_train) / len(error_train)
-            error_val = sum(error_val) / len(error_val)
+            # error_train = sum(error_train) / len(error_train)
+            # error_val = sum(error_val) / len(error_val)
+            error_train_loss = np.median(error_train)
+            error_val_loss = np.median(error_val)
 
             if (epoch+1) % self.config.model_save_step == 0:
                 save_filename = self.model_save_path + '/%s_net.pth' % epoch
@@ -183,25 +185,24 @@ class Solver():
                 if torch.cuda.is_available():
                     self.model.to(device)
 
-            if error_train < best_train_loss:
-                best_train_loss = error_train
+            if error_train_loss < best_train_loss:
+                best_train_loss = error_train_loss
                 best_train_model = epoch
-            if error_val < best_val_loss:
-                best_val_loss = error_val
+            if error_val_loss < best_val_loss:
+                best_val_loss = error_val_loss
                 best_val_model = epoch
                 save_filename = self.model_save_path + '/best_net.pth'
                 torch.save(self.model.cpu().state_dict(), save_filename)
                 if torch.cuda.is_available():
                     self.model.to(device)
 
-
-            print('Train and Validaion error {} / {}'.format(error_train, error_val))
+            print('Train and Validaion error {} / {}'.format(error_train_loss, error_val_loss))
             print('=' * 40)
             print('=' * 40)
 
             if use_tensorboard:
-                writer.add_scalars('loss/trainval', {'train':error_train,
-                                                     'val':error_val}, epoch)
+                writer.add_scalars('loss/trainval', {'train':error_train_loss,
+                                                     'val':error_val_loss}, epoch)
 
         time_elapsed = time.time() - since
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
@@ -218,6 +219,7 @@ class Solver():
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.model = self.model.to(device)
+        self.model.eval()
 
         if self.config.test_model is None:
             test_model_path = self.model_save_path + '/best_net.pth'
@@ -265,11 +267,14 @@ class Solver():
             ori_out = F.normalize(ori_out, p=2, dim=1)
             ori_true = F.normalize(ori_true, p=2, dim=1)
 
-            # loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
-            # loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
+            loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
+            loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
 
-            loss_pos_print = F.l1_loss(pos_out, pos_true).item()
-            loss_ori_print = F.l1_loss(ori_out, ori_true).item()
+            # loss_pos_print = F.l1_loss(pos_out, pos_true).item()
+            # loss_ori_print = F.l1_loss(ori_out, ori_true).item()
+
+            # loss_pos_print = self.loss_func(pos_out, pos_true).item()
+            # loss_ori_print = self.loss_func(ori_out, ori_true).item()
 
             print(pos_out)
             print(pos_true)
@@ -283,10 +288,14 @@ class Solver():
 
             print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
 
-        position_error = sum(pos_loss_arr)/len(pos_loss_arr)
-        rotation_error = sum(ori_loss_arr)/len(ori_loss_arr)
+        # position_error = sum(pos_loss_arr)/len(pos_loss_arr)
+        # rotation_error = sum(ori_loss_arr)/len(ori_loss_arr)
+        position_error = np.median(pos_loss_arr)
+        rotation_error = np.median(ori_loss_arr)
+
         print('=' * 20)
-        print('Overall pose errer {:.3f} / {:.3f}'.format(position_error, rotation_error))
+        print('Overall median pose errer {:.3f} / {:.3f}'.format(position_error, rotation_error))
+        print('Overall average pose errer {:.3f} / {:.3f}'.format(np.mean(pos_loss_arr), np.mean(ori_loss_arr)))
 
         if self.config.sequential_mode:
             f = open(self.summary_save_path + '/test.csv', 'w')

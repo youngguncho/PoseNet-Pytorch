@@ -26,4 +26,19 @@
 - Still, cannot find the reason on weak performance compared to other implementations
 - Weight initialization seems important for training
   - Add weight initialization followed by the original caffe-posenet code
-  -
+
+### 18/08/08
+- Overall training loss do not decrease as we expected
+  - Rotation loss is not trained well
+- Small batchsize(=4) seems work fine
+  - Code bug in test mode (did not model.eval())
+
+### 18/08/09
+- Now fixed bug in the test code.
+  - Previous training process worked fine, there was an bug in the test Code
+    - model.eval() affects the performance severly
+  - Tested model
+    - batch size: 4, 8, 16, 64 (All converge well)
+    - initializatio: kaming normal, normal, none (All converge well)
+    - validation: crop training data (worked fine but little low performance)
+    - Loss function: L1, MSE, L2 (All worked fine)

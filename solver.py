@@ -18,7 +18,8 @@ class Solver():
         # if not self.config.bayesian:
         #     self.config.dropout_rate = 0.0
 
-        self.model = model_parser(self.config.model, self.config.fixed_weight, self.config.dropout_rate)
+        self.model = model_parser(self.config.model, self.config.fixed_weight, self.config.dropout_rate,
+                                  self.config.bayesian)
 
         self.print_network(self.model, self.config.model)
         self.model_save_path = 'models_%s' % self.config.model
@@ -244,7 +245,6 @@ class Solver():
             print(i)
 
             inputs = inputs.to(device)
-            poses = poses.to(device)
 
             # forward
             if self.config.bayesian:
@@ -252,12 +252,14 @@ class Solver():
                 pos_array = torch.Tensor(num_bayesian_test, 3)
                 ori_array = torch.Tensor(num_bayesian_test, 4)
                 for i in range(num_bayesian_test):
-                    pos_single, ori_single = self.model(input)
+                    pos_single, ori_single = self.model(inputs)
                     pos_array[i, :] = pos_single
                     ori_array[i, :] = ori_single
 
-                pos_out = torch.mean(pos_array)
-                ori_out = torch.mean(ori_array)
+                pos_out = torch.mean(pos_array, dim=0).unsqueeze(0)
+                ori_out = torch.mean(ori_array, dim=0).unsqueeze(0)
+                pos_std = torch.std(pos_array, dim=0)
+                ori_std = torch.std(ori_array, dim=0)
             else:
                 pos_out, ori_out = self.model(inputs)
 
@@ -278,7 +280,6 @@ class Solver():
 
             print(pos_out)
             print(pos_true)
-            print(F.pairwise_distance(pos_out, pos_true, p=2))
 
             total_pos_loss += loss_pos_print
             total_ori_loss += loss_ori_print
@@ -286,7 +287,11 @@ class Solver():
             pos_loss_arr.append(loss_pos_print)
             ori_loss_arr.append(loss_ori_print)
 
-            print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
+            if self.config.bayesian:
+                print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
+                print('{}th std: pos / ori', pos_std, ori_std)
+            else:
+                print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
 
         # position_error = sum(pos_loss_arr)/len(pos_loss_arr)
         # rotation_error = sum(ori_loss_arr)/len(ori_loss_arr)

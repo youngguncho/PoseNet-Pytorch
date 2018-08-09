@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 
-def model_parser(model, fixed_weight=False, dropout_rate=0.0):
+def model_parser(model, fixed_weight=False, dropout_rate=0.0, bayesian = False):
     base_model = None
 
     if model == 'Googlenet':
@@ -23,7 +23,7 @@ def model_parser(model, fixed_weight=False, dropout_rate=0.0):
         network = GoogleNet(base_model, fixed_weight, dropout_rate)
     elif model == 'Resnet':
         base_model = models.resnet34(pretrained=True)
-        network = ResNet(base_model, fixed_weight, dropout_rate)
+        network = ResNet(base_model, fixed_weight, dropout_rate, bayesian)
     elif model == 'ResnetSimple':
         base_model = models.resnet34(pretrained=True)
         network = ResNetSimple(base_model, fixed_weight)
@@ -34,8 +34,10 @@ def model_parser(model, fixed_weight=False, dropout_rate=0.0):
 
 
 class ResNet(nn.Module):
-    def __init__(self, base_model, fixed_weight=False, dropout_rate=0.0):
+    def __init__(self, base_model, fixed_weight=False, dropout_rate=0.0, bayesian = False):
         super(ResNet, self).__init__()
+
+        self.bayesian = bayesian
         self.dropout_rate = dropout_rate
         feat_in = base_model.fc.in_features
 
@@ -73,8 +75,9 @@ class ResNet(nn.Module):
         x = self.fc_last(x)
         x = F.relu(x)
 
+        dropout_on = self.training or self.bayesian
         if self.dropout_rate > 0:
-            x = F.dropout(x, p=self.dropout_rate, training=self.training)
+            x = F.dropout(x, p=self.dropout_rate, training=dropout_on)
 
         position = self.fc_position(x)
         rotation = self.fc_rotation(x)

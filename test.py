@@ -21,12 +21,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode', type=str, default='test', choices=['train', 'test'])
-    parser.add_argument('--bayesian', type=bool, default=False, help='Bayesian Posenet, True or False')
+    parser.add_argument('--bayesian', type=bool, default=True, help='Bayesian Posenet, True or False')
     parser.add_argument('--sequential_mode', type=str, default=None,
                         choices=[None, 'fixed_weight', 'batch_size', 'learning_rate', 'beta'])
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--beta', type=float, default=500)
-    parser.add_argument('--dropout_rate', type=float, default=0.0, help='range 0.0 to 1.0')
+    parser.add_argument('--dropout_rate', type=float, default=0.5, help='range 0.0 to 1.0')
     parser.add_argument('--shuffle', type=bool, default=False)
     parser.add_argument('--fixed_weight', type=bool, default=False)
     parser.add_argument('--model', type=str, default='Resnet', choices=['Googlenet', 'Resnet'])

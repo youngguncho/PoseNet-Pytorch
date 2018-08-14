@@ -26,7 +26,9 @@ if __name__ == '__main__':
                         choices=[None, 'model', 'fixed_weight', 'batch_size', 'learning_rate', 'beta'])
 
     parser.add_argument('--lr', type=float, default=0.0001)
-    parser.add_argument('--beta', type=float, default=500)
+    parser.add_argument('--sx', type=float, default=0.0)
+    parser.add_argument('--sq', type=float, default=-3.0)
+    parser.add_argument('--learn_beta', type=bool, default=True)
     parser.add_argument('--dropout_rate', type=float, default=0.5, help='range 0.0 to 1.0')
     parser.add_argument('--shuffle', type=bool, default=True)
     parser.add_argument('--fixed_weight', type=bool, default=False)
@@ -41,7 +43,7 @@ if __name__ == '__main__':
     # parser.add_argument('--dataset', type=str, default='Oxford', choices=['NCLT', 'VKITTI', 'Oxford', 'QUT'])
     parser.add_argument('--num_epochs', type=int, default=400)
     parser.add_argument('--num_epochs_decay', type=int, default=50)
-    parser.add_argument('--batch_size', type=int, default=64) # 16
+    parser.add_argument('--batch_size', type=int, default=16) # 16
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings

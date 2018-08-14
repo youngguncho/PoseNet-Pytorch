@@ -6,6 +6,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.optim import lr_scheduler
 from model import model_parser
+from model import PoseLoss
 from tensorboardX import SummaryWriter
 
 
@@ -18,8 +19,13 @@ class Solver():
         # if not self.config.bayesian:
         #     self.config.dropout_rate = 0.0
 
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
         self.model = model_parser(self.config.model, self.config.fixed_weight, self.config.dropout_rate,
                                   self.config.bayesian)
+
+        self.criterion = PoseLoss(self.device, self.config.sx, self.config.sq, self.config.learn_beta)
 
         self.print_network(self.model, self.config.model)
         self.model_save_path = 'models_%s' % self.config.model
@@ -72,11 +78,12 @@ class Solver():
         return diff
 
     def train(self):
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        self.model = self.model.to(device)
+        self.model = self.model.to(self.device)
+        self.criterion = self.criterion.to(self.device)
 
-        optimizer = optim.Adam(self.model.parameters(),
+        optimizer = optim.Adam([{'params': self.model.parameters()},
+                                {'params': [self.criterion.sx, self.criterion.sq]}],
                                lr=self.config.lr,
                                weight_decay=0.0005)
 
@@ -127,8 +134,8 @@ class Solver():
 
                 for i, (inputs, poses) in enumerate(data_loader):
 
-                    inputs = inputs.to(device)
-                    poses = poses.to(device)
+                    inputs = inputs.to(self.device)
+                    poses = poses.to(self.device)
 
                     # Zero the parameter gradient
                     optimizer.zero_grad()
@@ -139,23 +146,27 @@ class Solver():
                     pos_true = poses[:, :3]
                     ori_true = poses[:, 3:]
 
-                    beta = self.config.beta
                     ori_out = F.normalize(ori_out, p=2, dim=1)
                     ori_true = F.normalize(ori_true, p=2, dim=1)
 
-                    loss_pos = F.mse_loss(pos_out, pos_true)
-                    loss_ori = F.mse_loss(ori_out, ori_true)
+                    loss = self.criterion(pos_out, ori_out, pos_true, ori_true)
+                    loss_print = self.criterion.loss_print[0]
+                    loss_pos_print = self.criterion.loss_print[1]
+                    loss_ori_print = self.criterion.loss_print[2]
+
+                    # loss_pos = F.mse_loss(pos_out, pos_true)
+                    # loss_ori = F.mse_loss(ori_out, ori_true)
 
                     # loss_pos = F.l1_loss(pos_out, pos_true)
                     # loss_ori = F.l1_loss(ori_out, ori_true)
                     # loss_pos = self.loss_func(pos_out, pos_true)
                     # loss_ori = self.loss_func(ori_out, ori_true)
 
-                    loss = loss_pos + beta * loss_ori
+                    # loss = loss_pos + beta * loss_ori
 
-                    loss_print = loss.item()
-                    loss_ori_print = loss_ori.item()
-                    loss_pos_print = loss_pos.item()
+                    # loss_print = loss.item()
+                    # loss_ori_print = loss_ori.item()
+                    # loss_pos_print = loss_pos.item()
 
                     if use_tensorboard:
                         if phase == 'train':
@@ -163,6 +174,10 @@ class Solver():
                             writer.add_scalar('loss/overall_loss', loss_print, n_iter)
                             writer.add_scalar('loss/position_loss', loss_pos_print, n_iter)
                             writer.add_scalar('loss/rotation_loss', loss_ori_print, n_iter)
+                            if self.config.learn_beta:
+                                writer.add_scalar('param/sx', self.criterion.sx.item(), n_iter)
+                                writer.add_scalar('param/sq', self.criterion.sq.item(), n_iter)
+
                         elif phase == 'val':
                             error_val.append(loss_print)
 
@@ -184,7 +199,7 @@ class Solver():
                 # save_path = os.path.join('models', save_filename)
                 torch.save(self.model.cpu().state_dict(), save_filename)
                 if torch.cuda.is_available():
-                    self.model.to(device)
+                    self.model.to(self.device)
 
             if error_train_loss < best_train_loss:
                 best_train_loss = error_train_loss
@@ -195,7 +210,7 @@ class Solver():
                 save_filename = self.model_save_path + '/best_net.pth'
                 torch.save(self.model.cpu().state_dict(), save_filename)
                 if torch.cuda.is_available():
-                    self.model.to(device)
+                    self.model.to(self.device)
 
             print('Train and Validaion error {} / {}'.format(error_train_loss, error_val_loss))
             print('=' * 40)
@@ -219,7 +234,7 @@ class Solver():
     def test(self):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        self.model = self.model.to(device)
+        self.model = self.model.to(self.device)
         self.model.eval()
 
         if self.config.test_model is None:
@@ -244,11 +259,11 @@ class Solver():
         for i, (inputs, poses) in enumerate(self.data_loader):
             print(i)
 
-            inputs = inputs.to(device)
+            inputs = inputs.to(self.device)
 
             # forward
             if self.config.bayesian:
-                num_bayesian_test = 30
+                num_bayesian_test = 100
                 pos_array = torch.Tensor(num_bayesian_test, 3)
                 ori_array = torch.Tensor(num_bayesian_test, 4)
                 for i in range(num_bayesian_test):
@@ -262,6 +277,8 @@ class Solver():
                 ori_std = torch.std(ori_array, dim=0)
             else:
                 pos_out, ori_out = self.model(inputs)
+                pos_out = pos_out.cpu()
+                ori_out = ori_out.cpu()
 
             pos_true = poses[:, :3]
             ori_true = poses[:, 3:]

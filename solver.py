@@ -5,9 +5,11 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.optim import lr_scheduler
+from tensorboardX import SummaryWriter
 from model import model_parser
 from model import PoseLoss
-from tensorboardX import SummaryWriter
+from pose_utils import *
+
 
 
 class Solver():
@@ -28,11 +30,13 @@ class Solver():
         self.criterion = PoseLoss(self.device, self.config.sx, self.config.sq, self.config.learn_beta)
 
         self.print_network(self.model, self.config.model)
-        self.model_save_path = 'models_%s' % self.config.model
-        self.summary_save_path = 'summary_%s' % self.config.model
+        self.data_name = self.config.image_path.split('/')[-1]
+        self.model_save_path = 'models_%s' % self.data_name
+        self.summary_save_path = 'summary_%s' % self.data_name
 
         if self.config.pretrained_model:
             self.load_pretrained_model()
+
 
         if self.config.sequential_mode:
             self.set_sequential_mode()
@@ -266,28 +270,43 @@ class Solver():
                 num_bayesian_test = 100
                 pos_array = torch.Tensor(num_bayesian_test, 3)
                 ori_array = torch.Tensor(num_bayesian_test, 4)
+
                 for i in range(num_bayesian_test):
                     pos_single, ori_single = self.model(inputs)
                     pos_array[i, :] = pos_single
-                    ori_array[i, :] = ori_single
+                    ori_array[i, :] = F.normalize(ori_single, p=2, dim=1)
 
-                pos_out = torch.mean(pos_array, dim=0).unsqueeze(0)
-                ori_out = torch.mean(ori_array, dim=0).unsqueeze(0)
-                pos_std = torch.std(pos_array, dim=0)
-                ori_std = torch.std(ori_array, dim=0)
+                pose_quat = torch.cat((pos_array, ori_array), 1)
+                pred_pose, pred_var = fit_gaussian(pose_quat)
+
+                pos_var = np.sum(pred_var[:3])
+                ori_var = np.sum(pred_var[3:])
+
+                pos_out = pred_pose[:3]
+                ori_out = pred_pose[3:]
             else:
                 pos_out, ori_out = self.model(inputs)
-                pos_out = pos_out.cpu()
-                ori_out = ori_out.cpu()
+                pos_out = pos_out.cpu().numpy()
+                ori_out = F.normalize(ori_out, p=2, dim=1)
+                ori_out = quat_to_euler(ori_out.cpu().numpy())
 
-            pos_true = poses[:, :3]
-            ori_true = poses[:, 3:]
+            pos_true = poses[:, :3].squeeze(0).numpy()
+            ori_true = poses[:, 3:].squeeze(0).numpy()
+            print(ori_true.shape)
+            ori_true = quat_to_euler(ori_true)
 
-            ori_out = F.normalize(ori_out, p=2, dim=1)
-            ori_true = F.normalize(ori_true, p=2, dim=1)
+            loss_pos_print = array_dist(pos_out, pos_true)
+            loss_ori_print = array_dist(ori_out, ori_true)
 
-            loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
-            loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
+
+
+
+
+            # ori_out = F.normalize(ori_out, p=2, dim=1)
+            # ori_true = F.normalize(ori_true, p=2, dim=1)
+            #
+            # loss_pos_print = F.pairwise_distance(pos_out, pos_true, p=2).item()
+            # loss_ori_print = F.pairwise_distance(ori_out, ori_true, p=2).item()
 
             # loss_pos_print = F.l1_loss(pos_out, pos_true).item()
             # loss_ori_print = F.l1_loss(ori_out, ori_true).item()
@@ -306,7 +325,7 @@ class Solver():
 
             if self.config.bayesian:
                 print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
-                print('{}th std: pos / ori', pos_std, ori_std)
+                print('{}th std: pos / ori', pos_var, ori_var)
             else:
                 print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
 

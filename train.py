@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--sx', type=float, default=0.0)
-    parser.add_argument('--sq', type=float, default=0.0)
+    parser.add_argument('--sq', type=float, default=-3.0)
     parser.add_argument('--learn_beta', type=bool, default=True)
     parser.add_argument('--dropout_rate', type=float, default=0.5, help='range 0.0 to 1.0')
     parser.add_argument('--shuffle', type=bool, default=True)
@@ -35,8 +35,8 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='Resnet', choices=['Googlenet', 'Resnet'])
     parser.add_argument('--pretrained_model', type=str, default=None)
 
-    parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street')
-    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street/dataset_train.txt')
+    parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege')
+    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_train.txt')
 
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)

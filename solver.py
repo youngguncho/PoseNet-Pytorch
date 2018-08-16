@@ -236,6 +236,7 @@ class Solver():
             # return (best_train_loss, best_train_model), (best_val_loss, best_val_model)
 
     def test(self):
+        f = open(self.summary_save_path + '/test_result.csv', 'w')
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         self.model = self.model.to(self.device)
@@ -257,7 +258,6 @@ class Solver():
             pred_mean = []
             pred_var = []
 
-
         num_data = len(self.data_loader)
 
         for i, (inputs, poses) in enumerate(self.data_loader):
@@ -276,7 +276,7 @@ class Solver():
                     pos_array[i, :] = pos_single
                     ori_array[i, :] = F.normalize(ori_single, p=2, dim=1)
 
-                pose_quat = torch.cat((pos_array, ori_array), 1)
+                pose_quat = torch.cat((pos_array, ori_array), 1).detach().cpu().numpy()
                 pred_pose, pred_var = fit_gaussian(pose_quat)
 
                 pos_var = np.sum(pred_var[:3])
@@ -297,10 +297,6 @@ class Solver():
 
             loss_pos_print = array_dist(pos_out, pos_true)
             loss_ori_print = array_dist(ori_out, ori_true)
-
-
-
-
 
             # ori_out = F.normalize(ori_out, p=2, dim=1)
             # ori_true = F.normalize(ori_true, p=2, dim=1)
@@ -326,8 +322,12 @@ class Solver():
             if self.config.bayesian:
                 print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
                 print('{}th std: pos / ori', pos_var, ori_var)
+                f.write('{},{},{},{}\n'.format(loss_pos_print, loss_ori_print, pos_var, ori_var))
+
             else:
                 print('{}th Error: pos error {:.3f} / ori error {:.3f}'.format(i, loss_pos_print, loss_ori_print))
+
+
 
         # position_error = sum(pos_loss_arr)/len(pos_loss_arr)
         # rotation_error = sum(ori_loss_arr)/len(ori_loss_arr)
@@ -337,6 +337,7 @@ class Solver():
         print('=' * 20)
         print('Overall median pose errer {:.3f} / {:.3f}'.format(position_error, rotation_error))
         print('Overall average pose errer {:.3f} / {:.3f}'.format(np.mean(pos_loss_arr), np.mean(ori_loss_arr)))
+        f.close()
 
         if self.config.sequential_mode:
             f = open(self.summary_save_path + '/test.csv', 'w')

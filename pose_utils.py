@@ -7,16 +7,16 @@ def quat_to_euler(q, is_degree=False):
 
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
-    roll = np.rad2deg(np.arctan2(t0, t1))
+    roll = np.arctan2(t0, t1)
 
     t2 = +2.0 * (w * y - z * x)
     t2 = +1.0 if t2 > +1.0 else t2
     t2 = -1.0 if t2 < -1.0 else t2
-    pitch = np.rad2deg(np.arcsin(t2))
+    pitch = np.arcsin(t2)
 
     t3 = +2.0 * (w * z + x * y)
     t4 = +1.0 - 2.0 * (y * y + z * z)
-    yaw = np.rad2deg(np.arctan2(t3, t4))
+    yaw = np.arctan2(t3, t4)
 
     if is_degree:
         roll = np.rad2deg(roll)
@@ -42,7 +42,7 @@ def rotation_dist(pred, target):
 
 
 def fit_gaussian(pose_quat):
-    pose_quat = pose_quat.detach().cpu().numpy()
+    # pose_quat = pose_quat.detach().cpu().numpy()
 
     num_data, _ = pose_quat.shape
 
@@ -63,7 +63,6 @@ def fit_gaussian(pose_quat):
 
     mat_var = mat_var / num_data
     pose_var = mat_var.diagonal()
-    print(pose_var)
 
     return pose_mean, pose_var
 

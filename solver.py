@@ -286,15 +286,17 @@ class Solver():
                 ori_out = pred_pose[3:]
             else:
                 pos_out, ori_out = self.model(inputs)
-                pos_out = pos_out.cpu().numpy()
+                pos_out = pos_out.squeeze(0).detach().cpu().numpy()
                 ori_out = F.normalize(ori_out, p=2, dim=1)
-                ori_out = quat_to_euler(ori_out.cpu().numpy())
+                ori_out = quat_to_euler(ori_out.squeeze(0).detach().cpu().numpy())
+                print('pos out', pos_out)
+                print('ori_out', ori_out)
 
             pos_true = poses[:, :3].squeeze(0).numpy()
             ori_true = poses[:, 3:].squeeze(0).numpy()
-            print(ori_true.shape)
-            ori_true = quat_to_euler(ori_true)
 
+            ori_true = quat_to_euler(ori_true)
+            print('ori true', ori_true)
             loss_pos_print = array_dist(pos_out, pos_true)
             loss_ori_print = array_dist(ori_out, ori_true)
 

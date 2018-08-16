@@ -23,7 +23,7 @@ def quat_to_euler(q, is_degree=False):
         pitch = np.rad2deg(pitch)
         yaw = np.rad2deg(yaw)
 
-    return [roll, pitch, yaw]
+    return np.array([roll, pitch, yaw])
 
 
 def array_dist(pred, target):

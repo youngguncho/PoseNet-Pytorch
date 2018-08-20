@@ -35,8 +35,10 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='Resnet', choices=['Googlenet', 'Resnet'])
     parser.add_argument('--pretrained_model', type=str, default=None)
 
-    parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street')
-    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street/dataset_train.txt')
+#    parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street')
+    parser.add_argument('--image_path', type=str, default='/mnt/data2/complex_urban/urban08')
+#    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street/dataset_train.txt')
+    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/complex_urban/urban08/image_convert/train.txt')
 
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3') # selection of gpu id (single gpu)

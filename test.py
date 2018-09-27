@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode', type=str, default='test', choices=['train', 'test'])
-    parser.add_argument('--bayesian', type=bool, default=True, help='Bayesian Posenet, True or False')
+    parser.add_argument('--bayesian', type=bool, default=False, help='Bayesian Posenet, True or False')
     parser.add_argument('--sequential_mode', type=str, default=None,
                         choices=[None, 'model', 'fixed_weight', 'batch_size', 'learning_rate', 'beta'])
 
@@ -35,10 +35,12 @@ if __name__ == '__main__':
     parser.add_argument('--model', type=str, default='Resnet', choices=['Googlenet', 'Resnet'])
     parser.add_argument('--pretrained_model', type=str, default=None)
 
-#    parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street')
-    parser.add_argument('--image_path', type=str, default='/mnt/data2/complex_urban/urban08')
-#    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/Street/dataset_test.txt')
-    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/complex_urban/urban08/image_convert/test.txt')
+    # parser.add_argument('--image_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege')
+    # parser.add_argument('--image_path', type=str, default='/mnt/data2/complex_urban/urban08')
+    parser.add_argument('--image_path', type=str, default='/mnt/data2/NCLT')        
+    # parser.add_argument('--metadata_path', type=str, default='/mnt/data2/image_based_localization/posenet/KingsCollege/dataset_test.txt')
+    parser.add_argument('--metadata_path', type=str, default='/mnt/data2/NCLT/2012-01-08/test.txt')
+    #parser.add_argument('--metadata_path', type=str, default='/mnt/data2/complex_urban/urban08/image_convert/test.txt')
 
     # Training settings
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0 1 2 3')
@@ -51,8 +53,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=1)
 
     # Test settings
-    parser.add_argument('--test_model', type=str, default=None)
-    parser.add_argument('--target_attributes', nargs='+', default=['overcast', 'night'])
+    parser.add_argument('--test_model', type=str, default='49')
+    parser.add_argument('--save_result', type=bool, default=True)
 
     # Misc
     parser.add_argument('--use_tensorboard', type=bool, default=True)

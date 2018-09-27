@@ -38,6 +38,10 @@ class PoseLoss(nn.Module):
         super(PoseLoss, self).__init__()
         self.learn_beta = learn_beta
 
+        if not self.learn_beta:
+            self.sx = 0
+            self.sq = -6.25
+            
         self.sx = nn.Parameter(torch.Tensor([sx]), requires_grad=self.learn_beta)
         self.sq = nn.Parameter(torch.Tensor([sq]), requires_grad=self.learn_beta)
 
@@ -55,13 +59,14 @@ class PoseLoss(nn.Module):
         loss_x = F.l1_loss(pred_x, target_x)
         loss_q = F.l1_loss(pred_q, target_q)
 
+            
         loss = torch.exp(-self.sx)*loss_x \
                + torch.exp(-self.sq)*loss_q \
                + self.sq
 
         self.loss_print = [loss.item(), loss_x.item(), loss_q.item()]
 
-        return loss
+        return loss, loss_x.item(), loss_q.item()
 
 
 class ResNet(nn.Module):
@@ -103,8 +108,8 @@ class ResNet(nn.Module):
     def forward(self, x):
         x = self.base_model(x)
         x = x.view(x.size(0), -1)
-        x = self.fc_last(x)
-        x = F.relu(x)
+        x_fully = self.fc_last(x)
+        x = F.relu(x_fully)
 
         dropout_on = self.training or self.bayesian
         if self.dropout_rate > 0:
@@ -113,7 +118,7 @@ class ResNet(nn.Module):
         position = self.fc_position(x)
         rotation = self.fc_rotation(x)
 
-        return position, rotation
+        return position, rotation, x_fully
 
 
 class ResNetSimple(nn.Module):

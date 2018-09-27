@@ -78,6 +78,7 @@ class CustomDataset(Dataset):
         return num_data
 
 
+
 def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=False, num_val=100):
 
     # Predefine image size
@@ -93,6 +94,7 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
         transform = transforms.Compose([
             transforms.Resize(img_size),
             transforms.RandomCrop(img_crop),
+            transforms.ColorJitter(0.5, 0.5, 0.5, 0.2),            
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -116,6 +118,7 @@ def get_loader(model, image_path, metadata_path, mode, batch_size, is_shuffle=Fa
         is_shuffle = False
         dataset = CustomDataset(image_path, metadata_path, 'test', transform)
         data_loaders = DataLoader(dataset, batch_size, is_shuffle, num_workers=4)
+
     else:
         assert 'Unavailable Mode'
 

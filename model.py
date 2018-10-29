@@ -61,6 +61,7 @@ class PoseLoss(nn.Module):
 
             
         loss = torch.exp(-self.sx)*loss_x \
+               + self.sx \
                + torch.exp(-self.sq)*loss_q \
                + self.sq
 

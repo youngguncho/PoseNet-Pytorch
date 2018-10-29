@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--sx', type=float, default=0.0)
     parser.add_argument('--sq', type=float, default=-3.0)
-    parser.add_argument('--learn_beta', type=bool, default=True)
+    parser.add_argument('--learn_beta', type=bool, default=False)
     parser.add_argument('--dropout_rate', type=float, default=0.5, help='range 0.0 to 1.0')
     parser.add_argument('--shuffle', type=bool, default=True)
     parser.add_argument('--fixed_weight', type=bool, default=False)
